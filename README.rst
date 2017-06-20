@@ -40,6 +40,10 @@ offering access to most of the library's features.
     # Set a configuration value
     my_cam.config['capturesettings']['imagequality'].set("JPEG Fine")
 
+    # Turn on logging from gphoto2
+    from gphoto2cffi.backend import lib
+    lib.enable_logging = True
+
 Python 2.7 and 3.4 or newer (CPython and PyPy) are supported.
 
 .. _libgphoto2: http://www.gphoto.org/proj/libgphoto2/

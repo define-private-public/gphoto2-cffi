@@ -72,24 +72,6 @@ DIR_OPS = IntEnum('DirectoryOperations', {
     'upload': _lib.GP_FOLDER_OPERATION_PUT_FILE})
 
 
-def _logging_callback(level, domain, message, data):
-    """ Callback that outputs libgphoto2's logging message via
-        Python's standard logging facilities.
-
-    :param level:   libgphoto2 logging level
-    :param domain:  component the message originates from
-    :param message: logging message
-    :param data:    Other data in the logging record (unused)
-    """
-    domain = ffi.string(domain).decode()
-    message = ffi.string(message).decode()
-    logger = LOGGER.getChild(domain)
-
-    if level not in LOG_LEVELS:
-        return
-    logger.log(LOG_LEVELS[level], message)
-
-
 class LibraryWrapper(object):
     NO_ERROR_CHECK = (
         "gp_log_add_func",
@@ -97,6 +79,7 @@ class LibraryWrapper(object):
         "gp_list_count",
         "gp_result_as_string",
         "gp_library_version",)
+
 
     def __init__(self, to_wrap):
         """ Wrapper around our FFI object that performs error checking.
@@ -108,11 +91,20 @@ class LibraryWrapper(object):
         :param to_wrap:     FFI library to wrap
         """
         self._lib = to_wrap
+        self.logging_enabled = False
+
+        # Small wrapper that will enable/disable logging for us
+        def _logging_callback_wrapper(level, domain, message, data):
+            # Do we want to log?
+            if not self.logging_enabled:
+                return
+
+            self._logging_callback(level, domain, message, data)
 
         # Register logging callback with FFI
         self.logging_cb = ffi.callback(
             "void(GPLogLevel, const char*, const char*, void*)",
-            _logging_callback)
+            _logging_callback_wrapper)
         self._lib.gp_log_add_func(_lib.GP_LOG_DEBUG, self.logging_cb,
                                   ffi.NULL)
 
@@ -131,6 +123,22 @@ class LibraryWrapper(object):
         else:
             return val
 
+    def _logging_callback(self, level, domain, message, data):
+        """ Callback that outputs libgphoto2's logging message via
+            Python's standard logging facilities.
+    
+        :param level:   libgphoto2 logging level
+        :param domain:  component the message originates from
+        :param message: logging message
+        :param data:    Other data in the logging record (unused)
+        """
+        domain = ffi.string(domain).decode()
+        message = ffi.string(message).decode()
+        logger = LOGGER.getChild(domain)
+    
+        if level not in LOG_LEVELS:
+            return
+        logger.log(LOG_LEVELS[level], message)
 
 
 #: The wrapped library
